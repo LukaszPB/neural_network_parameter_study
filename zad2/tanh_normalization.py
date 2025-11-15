@@ -4,7 +4,8 @@ import time
 import os
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+import numpy as np
 
 df = pd.read_csv("ps6_dane1_ucz.txt", sep="\t")
 x_train1_raw = df["x"].values.reshape(-1, 1)
@@ -16,38 +17,48 @@ y_test1 = df["y"].values.reshape(-1, 1)
 
 x_train1_raw, x_val1_raw, y_train1, y_val1 = train_test_split(x_train1_raw, y_train1, test_size=0.2, random_state=42)
 
-df = pd.read_csv("ps6_dane2.txt", sep="\t")
-X_dane2 = df[["x1","x2"]].values
-y_dane2 = df["y"].values.reshape(-1, 1)
-
-X_train2_raw, X_test2_raw, y_train2, y_test2 = train_test_split(X_dane2, y_dane2, test_size=0.25, random_state=42)
-
-X_train2_raw, X_val2_raw, y_train2, y_val2 = train_test_split(X_train2_raw, y_train2, test_size=0.2, random_state=42)
-
-scaler_x = StandardScaler() 
+scaler_x = StandardScaler()
 x_train1 = scaler_x.fit_transform(x_train1_raw) 
 x_val1 = scaler_x.transform(x_val1_raw)
 x_test1 = scaler_x.transform(x_test1_raw)
 
-scaler_x = StandardScaler() 
-X_train2 = scaler_x.fit_transform(X_train2_raw) 
-X_val2 = scaler_x.transform(X_val2_raw)
-X_test2 = scaler_x.transform(X_test2_raw)
+x_train1_LeCun = (x_train1_raw - x_train1_raw.mean(axis=0)) / (x_train1_raw.std(axis=0) * 0.577)
+x_val1_LeCun = (x_val1_raw - x_val1_raw.mean(axis=0)) / (x_val1_raw.std(axis=0) * 0.577)
+x_test1_LeCun = (x_test1_raw - x_test1_raw.mean(axis=0)) / (x_test1_raw.std(axis=0) * 0.577)
+
+
+scaler_minmax = MinMaxScaler(feature_range=(-1, 1))
+x_train1_mm = scaler_minmax.fit_transform(x_train1_raw)
+x_val1_mm   = scaler_minmax.transform(x_val1_raw)
+x_test1_mm  = scaler_minmax.transform(x_test1_raw)
+
+print("=== StandardScaler ===")
+print("Train: min =", np.min(x_train1), "max =", np.max(x_train1), "mean =", np.mean(x_train1))
+print("Val:   min =", np.min(x_val1),   "max =", np.max(x_val1),   "mean =", np.mean(x_val1))
+print("Test:  min =", np.min(x_test1),  "max =", np.max(x_test1),  "mean =", np.mean(x_test1))
+
+print("\n=== LeCun ===")
+print("Train: min =", np.min(x_train1_LeCun), "max =", np.max(x_train1_LeCun), "mean =", np.mean(x_train1_LeCun))
+print("Val:   min =", np.min(x_val1_LeCun),   "max =", np.max(x_val1_LeCun),   "mean =", np.mean(x_val1_LeCun))
+print("Test:  min =", np.min(x_test1_LeCun),  "max =", np.max(x_test1_LeCun),  "mean =", np.mean(x_test1_LeCun))
+
+print("\n=== MinMaxScaler ===")
+print("Train: min =", np.min(x_train1_mm), "max =", np.max(x_train1_mm), "mean =", np.mean(x_train1_mm))
+print("Val:   min =", np.min(x_val1_mm),   "max =", np.max(x_val1_mm),   "mean =", np.mean(x_val1_mm))
+print("Test:  min =", np.min(x_test1_mm),  "max =", np.max(x_test1_mm),  "mean =", np.mean(x_test1_mm))
+
+print("\n=== Raw data ===")
+print("Train: min =", np.min(x_train1_raw), "max =", np.max(x_train1_raw), "mean =", np.mean(x_train1_raw))
+print("Val:   min =", np.min(x_val1_raw),   "max =", np.max(x_val1_raw),   "mean =", np.mean(x_val1_raw))
+print("Test:  min =", np.min(x_test1_raw),  "max =", np.max(x_test1_raw),  "mean =", np.mean(x_test1_raw), "\n")
 
 # Lista konfiguracji
-activations = ['relu', 'leaky_relu', 'tanh']
+activations = ['tanh']
 optimizers = {
-     "Adam": lambda: tf.keras.optimizers.Adam(),
-    "AdamW": lambda: tf.keras.optimizers.AdamW(learning_rate=0.001),
-    "SGD": lambda: tf.keras.optimizers.SGD(momentum=0.9),
+     "Adam": lambda: tf.keras.optimizers.Adam()
 }
 structures = [
-    [32],
-    [32, 16],
-    [32, 32],
-    [64, 64, 32],
-    [128,128,64],
-    [256,256,128]
+    [64, 64, 32]
 ]
 
 batch_size = 10
@@ -55,14 +66,13 @@ patience = 10
 
 datasets = [
     ("Dane1_standardise", x_train1, y_train1, x_val1, y_val1, x_test1, y_test1),
+    ("Dane1_LeCun", x_train1_LeCun, y_train1, x_val1_LeCun, y_val1, x_test1_LeCun, y_test1),
+    ("Dane1_min-max", x_train1_mm, y_train1, x_val1_mm, y_val1, x_test1_mm, y_test1),
     ("Dane1_raw", x_train1_raw, y_train1, x_val1_raw, y_val1, x_test1_raw, y_test1),
-    ("Dane2_standardise", X_train2, y_train2, X_val2, y_val2, X_test2, y_test2),
-    ("Dane2_raw", X_train2_raw, y_train2, X_val2_raw, y_val2, X_test2_raw, y_test2)
 ]
 
-os.makedirs("results", exist_ok=True)
+os.makedirs("tanh_normalziation_result", exist_ok=True)
 
-results = []
 for act in activations:
     for opt_name, opt_fn in optimizers.items():
         for struct in structures:
@@ -108,19 +118,6 @@ for act in activations:
 
                     epochs_run = history.epoch[-1] + 1
 
-                    results.append({
-                        'run_number': run_number + 1,
-                        'activation': act,
-                        'optimizer': opt_name,
-                        'structure': str(struct),
-                        'dataset': dname,
-                        'mse_train': round(mse_train, 6),
-                        'mse_val': round(mse_val, 6),
-                        'mse_test': round(mse_test, 6),
-                        'epochs_run': epochs_run,
-                        'fit_time_sec': round(fit_time, 2)
-                    })
-
                     if best_mse_test > mse_test:
                         best_mse_test = mse_test
                         best_history = history
@@ -161,8 +158,5 @@ for act in activations:
 
             plt.tight_layout()
             plt.subplots_adjust(top=0.95)
-            plt.savefig(f"results/{act}-{opt_name}-{struct}.png")
+            plt.savefig(f"tanh_normalziation_result/{act}-{opt_name}-{struct}.png")
             plt.close(fig)
-
-df_results = pd.DataFrame(results)
-df_results.to_csv('results/experiment_results.csv', index=False)

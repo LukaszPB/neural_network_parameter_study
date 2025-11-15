@@ -1,11 +1,19 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import time
+import pandas as pd
 
 batch_sizes = [1,2,5,10,50,100,250,500,1000,5000,10000,20000,30000,40000,50000,60000]
 losses = []
 accuracies = []
 times = []
+
+class BatchLossLogger(tf.keras.callbacks.Callback):
+    def on_train_begin(self, logs=None):
+        self.batch_losses = []
+
+    def on_train_batch_end(self, batch, logs=None):
+        self.batch_losses.append(logs["loss"])
 
 def train_model(batch_size):
     # deep learning library. Tensors are just multi-dimensional arrays
@@ -30,18 +38,36 @@ def train_model(batch_size):
     # how will we calculate our "error." Neural network aims to minimize loss.
     metrics=['accuracy'])
     # what to track
+    logger = BatchLossLogger()
+
     start_time = time.time()
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=3) # train the model
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=3, callbacks=[logger]) # train the model
     end_time = time.time()
     val_loss, val_acc = model.evaluate(x_test, y_test) # evaluate the out of sample data with model
 
-    return val_loss, val_acc, end_time-start_time
+    return logger.batch_losses, val_loss, val_acc, end_time-start_time
+
+plt.figure(figsize=(12,7))
 
 for batch_size in batch_sizes:
-    loss, accuracy, training_time = train_model(batch_size)
-    losses.append(loss)
-    times.append(training_time)
-    accuracies.append(accuracy)
+    batch_losses, val_loss, val_acc, train_time = train_model(batch_size)
+
+    losses.append(val_loss)
+    accuracies.append(val_acc)
+    times.append(train_time)
+
+    flat_losses = [float(x) for x in batch_losses]
+    smooth = pd.Series(flat_losses).rolling(window=50, min_periods=1).mean()
+
+    plt.plot(smooth, label=f"Batch size {batch_size}")
+
+plt.xscale('log')   # czytelność przy różnych długościach
+plt.xlabel("Iteracja (log)", fontsize=14)
+plt.ylabel("Loss (wygładzony)", fontsize=14)
+plt.title("Zmiana loss w zależności od batch size", fontsize=16)
+plt.legend(fontsize=12)
+plt.savefig("loss_vs_iteration.png", dpi=300)
+plt.close()
 
 print("\n")
 print(f"{'Batch size':>12} | {'Loss':>10} | {'Accuracy':>10} | {'Time (s)':>10}")
